@@ -70,7 +70,7 @@
         b.name.localeCompare(a.name, undefined, { numeric: true })
       )[0];
 
-      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${photosFolder}/${encodeURIComponent(latest.name)}?v=${Date.now()}`;
+      const rawUrl = latest.download_url + `?v=${Date.now()}`;
 
       document.getElementById("photoBox").innerHTML = `<img src="${rawUrl}" alt="${latest.name}">`;
       document.getElementById("title").textContent = cleanName(latest.name);
