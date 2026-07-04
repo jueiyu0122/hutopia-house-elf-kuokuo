@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>NFC Photo</title>
+  <style>
+    :root { --bg1:#fbf5ed; --bg2:#eadfd3; --text:#2f2924; --muted:#81766f; --accent:#9b6a4a; }
+    * { box-sizing:border-box; }
+    body {
+      margin:0; min-height:100vh;
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC",sans-serif;
+      color:var(--text);
+      background:radial-gradient(circle at top left,#fffaf3 0,transparent 35%),linear-gradient(135deg,var(--bg1),var(--bg2));
+      display:grid; place-items:center; padding:24px;
+    }
+    .card {
+      width:min(100%,460px); background:rgba(255,255,255,.78);
+      border-radius:30px; padding:16px 16px 22px;
+      box-shadow:0 18px 50px rgba(75,50,30,.15);
+      text-align:center; backdrop-filter:blur(14px);
+    }
+    .photo {
+      width:100%; border-radius:24px; background:#eee; overflow:hidden;
+      min-height:320px; display:grid; place-items:center;
+    }
+    .photo img { width:100%; max-height:70vh; object-fit:contain; display:block; background:#eee; }
+    h1 { margin:18px 6px 8px; font-size:28px; line-height:1.2; }
+    p { margin:0 8px; color:var(--muted); line-height:1.7; font-size:15px; }
+    .last-update { margin-top:14px; font-size:13px; color:#9b9087; }
+    .empty { padding:80px 24px; color:var(--muted); line-height:1.8; }
+    .footer { margin-top:16px; font-size:12px; color:#9b9087; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div id="photoBox" class="photo"><div class="empty">照片載入中...</div></div>
+    <h1 id="title">NFC Photo</h1>
+    <p id="caption">上傳新照片到 GitHub 的 photos 資料夾，這裡會自動顯示最新一張。</p>
+    <p id="lastUpdate" class="last-update"></p>
+    <div class="footer">One NFC, one link, one latest photo.</div>
+  </main>
+
+  <script>
+    const owner = "jueiyu0122";
+    const repo = "hutopia-house-elf-kuokuo";
+    const branch = "main";
+    const photosFolder = "photos";
+
+    async function loadLatestPhoto() {
+      const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${photosFolder}?ref=${branch}`;
+      const response = await fetch(apiUrl, { cache: "no-store" });
+
+      if (!response.ok) {
+        showEmpty("找不到 photos 資料夾。");
+        return;
+      }
+
+      const files = await response.json();
+      const images = files
+        .filter(file => file.type === "file")
+        .filter(file => /\.(jpg|jpeg|png|webp|gif)$/i.test(file.name));
+
+      if (!images.length) {
+        showEmpty("目前還沒有照片。請到 photos 資料夾上傳一張圖片。");
+        return;
+      }
+
+      const latest = images.sort((a, b) =>
+        b.name.localeCompare(a.name, undefined, { numeric: true })
+      )[0];
+
+      const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${photosFolder}/${encodeURIComponent(latest.name)}?v=${Date.now()}`;
+
+      document.getElementById("photoBox").innerHTML = `<img src="${rawUrl}" alt="${latest.name}">`;
+      document.getElementById("title").textContent = cleanName(latest.name);
+      loadLastUpdate(latest.path);
+    }
+
+    async function loadLastUpdate(filePath) {
+      const commitUrl = `https://api.github.com/repos/${owner}/${repo}/commits?path=${filePath}&per_page=1`;
+      const response = await fetch(commitUrl, { cache: "no-store" });
+      if (!response.ok) return;
+
+      const commits = await response.json();
+      if (!commits.length) return;
+
+      const date = new Date(commits[0].commit.committer.date);
+      const formatted = date.toLocaleString("zh-TW", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+
+      document.getElementById("lastUpdate").textContent =
+        `Last update from Taiwan 🇹🇼：${formatted}`;
+    }
+
+    function cleanName(name) {
+      return name
+        .replace(/\.(jpg|jpeg|png|webp|gif)$/i, "")
+        .replace(/[-_]/g, " ");
+    }
+
+    function showEmpty(message) {
+      document.getElementById("photoBox").innerHTML = `<div class="empty">${message}</div>`;
+      document.getElementById("lastUpdate").textContent = "";
+    }
+
+    loadLatestPhoto();
+  </script>
+</body>
+</html>
